@@ -1,0 +1,467 @@
+looker resumo diario parte 1 arquivo tb_resumo_diario.view
+
+view: tb_resumo_diario {
+  sql_table_name: `facily-817c2.facily_wp_logistic_aux.TB_resumo_diario`
+    ;;
+
+  dimension: categoria {
+    type: string
+    sql: ${TABLE}.categoria ;;
+    description: "Categoria do pedido"
+  }
+
+  dimension: contagem_pedidos {
+    type: number
+    sql: ${TABLE}.contagem_pedidos ;;
+    description: "Contagem do pedido"
+  }
+
+  dimension: status_pedido{
+    type: string
+    sql: ${TABLE}.dado ;;
+    description: "Status do pedio / fase que ele se encontra"
+
+  }
+
+  dimension_group: data_ref {
+    type: time
+    timeframes: [
+      raw,
+      date,
+      week,
+      month,
+      quarter,
+      year,
+
+      # time frame para o seletor
+
+      month_num,
+      month_name,
+      hour_of_day,
+
+      day_of_year,
+      day_of_month,
+      day_of_week,
+      day_of_week_index,
+
+
+
+    ]
+    convert_tz: no
+    datatype: date
+    sql: ${TABLE}.data_ref ;;
+  }
+
+  dimension: filial {
+    type: string
+    sql: ${TABLE}.filial ;;
+    description: "Filial / Centro de distribuição"
+  }
+
+  dimension: hub {
+    type: string
+    sql: ${TABLE}.HUB ;;
+    description: "Hub que o pedido passou"
+  }
+
+  dimension: onboarding_auto {
+    type: string
+    sql: ${TABLE}.onboarding_auto ;;
+    description: "Se o onboarding_auto sim ou não"
+  }
+
+  dimension: place_name2 {
+    type: string
+    sql: ${TABLE}.place_name2 ;;
+    description: "Nome do Seller"
+  }
+
+  dimension: regiao {
+    type: string
+    sql: ${TABLE}.regiao ;;
+    description: "Região do pedido"
+  }
+
+  dimension: semana_ref {
+    type: string
+    sql: ${TABLE}.semana_ref ;;
+    description: "Semana de referência"
+  }
+
+  dimension: tipo_backlog {
+    type: string
+    sql: ${TABLE}.tipo_backlog ;;
+    description: "Tipo do Backlog antem de 11/11 ou posterior"
+  }
+
+  dimension: tipo_filial {
+    type: string
+    sql: ${TABLE}.tipo_filial ;;
+    description: "Tipo do pedido 1P ou 3P"
+  }
+
+  measure: count {
+    type: count
+    drill_fields: []
+  }
+}
+
+
+
+
+
+
+
+parte 2 arquivo tb_resumo_diario_ext.view
+
+
+
+
+
+
+
+include: "tb_resumo_diario.view"
+include: "tb_resumo_diario_parameters.view"
+
+
+view: +tb_resumo_diario {
+
+### substitua qualquer referência a order_items pela visualização de sua escolha
+### Estamos assumindo aqui que a dimensão de data que queremos aproveitar no PoP é order_items.created_date rotulada como "Data do pedido
+
+  dimension: created_month_of_quarter_advanced {
+    label: "Orders Month of Quarter"
+    group_label: "Orders Dates"
+    group_item_label: "Month of Quarter"
+    type: number
+    sql:
+      case
+        when ${data_ref_month_num} IN (1,4,7,10) THEN 1
+        when ${data_ref_month_num} IN (2,5,8,11) THEN 2
+        else 3
+      end
+    ;;
+  }
+
+  dimension: is_to_date_advanced {
+    hidden: no
+    type: yesno
+    sql:
+      {% if parametros.select_timeframe_advanced._parameter_value == 'ytd' %}true
+      {% else %}
+        {% if parametros.apply_to_date_filter_advanced._parameter_value == 'true' %}
+          {% if parametros.select_timeframe_advanced._parameter_value == 'week' %}
+            ${data_ref_day_of_week_index} <= ${parametros.current_timestamp_advanced_day_of_week_index}
+
+          {% elsif parametros.select_timeframe_advanced._parameter_value == 'day' %}
+             ${data_ref_hour_of_day} <= ${parametros.current_timestamp_advanced_hour_of_day}
+
+
+          {% elsif parametros.select_dynamic_timeframe_advanced._parameter_value == 'quarter' %}
+            ${created_month_of_quarter_advanced} <= ${parametros.current_timestamp_month_of_quarter_advanced}
+
+          {% elsif parametros.select_timeframe_advanced._parameter_value == 'year' %}
+            ${data_ref_day_of_year} <= ${parametros.current_timestamp_advanced_day_of_year}
+          {% else %}
+            ${data_ref_day_of_month} <= ${parametros.current_timestamp_advanced_day_of_month}
+          {% endif %}
+        {% else %} true
+        {% endif %}
+      {% endif %}
+    ;;
+  }
+
+  dimension: selected_dynamic_timeframe_advanced  {
+    label_from_parameter: parametros.select_timeframe_advanced
+    type: string
+    hidden: no
+    sql:
+      {% if parametros.select_timeframe_advanced._parameter_value == 'day' %}
+        ${data_ref_date}
+      {% elsif parametros.select_timeframe_advanced._parameter_value == 'week' %}
+        ${data_ref_week}
+      {% elsif parametros.select_timeframe_advanced._parameter_value == 'year' %}
+        ${data_ref_year}
+      {% elsif parametros.select_timeframe_advanced._parameter_value == 'quarter' %}
+        ${data_ref_quarter}
+      {% elsif parametros.select_timeframe_advanced._parameter_value == 'ytd' %}
+        CONCAT('YTD (',${data_ref_year},'-',${parametros.selected_reference_date_default_today_advanced_month_num},'-',${parametros.selected_reference_date_default_today_advanced_day_of_month},')')
+      {% else %}
+        ${data_ref_month}
+      {% endif %}
+    ;;
+  }
+
+  dimension: selected_dynamic_day_of_advanced  {
+    label: "{%
+    if parametros.select_timeframe_advanced._is_filtered and parametros.select_timeframe_advanced._parameter_value == 'month' %}Day of Month{%
+    elsif parametros.select_timeframe_advanced._is_filtered and parametros.select_timeframe_advanced._parameter_value == 'week' %}Day of Week{%
+    elsif parametros.select_timeframe_advanced._is_filtered and parametros.select_timeframe_advanced._parameter_value == 'day' %}Hour of Day{%
+    elsif parametros.select_timeframe_advanced._is_filtered and parametros.select_timeframe_advanced._parameter_value == 'year' %}Months{%
+    elsif parametros.select_timeframe_advanced._is_filtered and parametros.select_timeframe_advanced._parameter_value == 'ytd' %}Day of Year{%
+    else %}Selected Dynamic Timeframe Granularity{%
+    endif %}"
+    order_by_field: selected_dynamic_day_of_sort_advanced
+    type: string
+    sql:
+    {% if parametros.select_timeframe_advanced._parameter_value == 'day' %}
+      ${data_ref_hour_of_day}
+    {% elsif parametros.select_timeframe_advanced._parameter_value == 'week' %}
+      ${data_ref_day_of_week}
+    {% elsif parametros.select_timeframe_advanced._parameter_value == 'year' %}
+      ${data_ref_month_name}
+    {% elsif parametros.select_timeframe_advanced._parameter_value == 'quarter' %}
+      ${created_month_of_quarter_advanced}
+      {% elsif parametros.select_timeframe_advanced._parameter_value == 'ytd' %}
+      ${data_ref_day_of_year}
+    {% else %}
+      ${data_ref_day_of_month}
+    {% endif %}
+    ;;
+  }
+
+  dimension: selected_dynamic_day_of_sort_advanced  {
+    hidden: no
+    label_from_parameter: parametros.select_timeframe_advanced
+    type: number
+    sql:
+    {% if parametros.select_timeframe_advanced._parameter_value == 'day' %}
+      ${data_ref_hour_of_day}
+    {% elsif parametros.select_timeframe_advanced._parameter_value == 'week' %}
+      ${data_ref_day_of_week_index}
+    {% elsif parametros.select_timeframe_advanced._parameter_value == 'year' %}
+      ${data_ref_month_num}
+    {% elsif parametros.select_timeframe_advanced._parameter_value == 'quarter' %}
+      ${created_month_of_quarter_advanced}
+    {% elsif parametros.select_timeframe_advanced._parameter_value == 'ytd' %}
+      ${data_ref_day_of_year}
+    {% else %}
+      ${data_ref_day_of_month}
+    {% endif %}
+    ;;
+  }
+
+####  CURRENT/REFERENCE [Timeframe] VS PREVIOUS [Timeframe] with dynamic labels and default to today
+
+  dimension: current_vs_previous_period_advanced {
+    label: "Current vs Previous Period"
+    hidden: no
+    description: "Use esta dimensão ao lado \"Select Timeframe\" and \"Select Comparison Type\" Filters to compare a specific timeframe (month, quarter, year) and the corresponding one of the previous year"
+    type: string
+    sql:
+    {% if parametros.select_timeframe_advanced._parameter_value == "ytd" %}
+      CASE
+        WHEN ${data_ref_date} BETWEEN DATE_TRUNC(DATE_TRUNC(${parametros.selected_reference_date_default_today_advanced_raw}, YEAR), MONTH) AND DATE_TRUNC(${parametros.selected_reference_date_default_today_advanced_raw}, DAY)
+          THEN ${selected_dynamic_timeframe_advanced}
+        WHEN ${data_ref_date} BETWEEN DATE_TRUNC(DATE_TRUNC(DATE_SUB(${parametros.selected_reference_date_default_today_advanced_raw}, INTERVAL 1 YEAR), YEAR), MONTH) AND DATE_TRUNC(DATE_SUB(${parametros.selected_reference_date_default_today_advanced_raw}, INTERVAL 1 YEAR), MONTH)
+          THEN ${selected_dynamic_timeframe_advanced}
+        ELSE NULL
+      END
+    {% else %}
+      {% if parametros.select_comparison._parameter_value == "year" %}
+        CASE
+          WHEN DATE_TRUNC(${data_ref_raw},  {% parameter parametros.select_timeframe_advanced %}) = DATE_TRUNC(${parametros.selected_reference_date_default_today_advanced_raw}, {% parameter parametros.select_timeframe_advanced %})
+            THEN ${selected_dynamic_timeframe_advanced}
+          WHEN DATE_TRUNC(${data_ref_raw},  {% parameter parametros.select_timeframe_advanced %}) = DATE_TRUNC(DATE_SUB(${parametros.selected_reference_date_default_today_advanced_raw}, INTERVAL 1 YEAR), {% parameter parametros.select_timeframe_advanced %})
+            THEN ${selected_dynamic_timeframe_advanced}
+          ELSE NULL
+        END
+      {% elsif parametros.select_comparison._parameter_value == "period" %}
+        CASE
+          WHEN DATE_TRUNC(${data_ref_raw},  {% parameter parametros.select_timeframe_advanced %}) = DATE_TRUNC(${parametros.selected_reference_date_default_today_advanced_raw}, {% parameter parametros.select_timeframe_advanced %})
+            THEN ${selected_dynamic_timeframe_advanced}
+
+
+          WHEN DATE_TRUNC(${data_ref_raw},  {% parameter parametros.select_timeframe_advanced %}) = DATE_TRUNC(DATE_SUB(${parametros.selected_reference_date_default_today_advanced_raw}, INTERVAL {% parameter parametros.numero_intervalo %} {% parameter parametros.select_timeframe_advanced %}), {% parameter parametros.select_timeframe_advanced %})
+            THEN ${selected_dynamic_timeframe_advanced}
+          ELSE NULL
+        END
+
+      {% endif %}
+    {% endif %}
+  ;;
+  }
+
+  dimension: current_vs_previous_period_hidden_advanced {
+    label: "Período atual x anterior (oculto - apenas para medição)"
+    hidden: no
+    description: "Oculte esta medida para que ela não apareça no piquete de campo e use-a para filtrar medidas (já que os valores são estáticos)"
+    type: string
+    sql:
+    {% if parametros.select_timeframe_advanced._parameter_value == "ytd" %}
+      CASE
+        WHEN ${data_ref_date} BETWEEN DATE_TRUNC(DATE_TRUNC(${parametros.selected_reference_date_default_today_advanced_raw}, YEAR), MONTH) AND DATE_TRUNC(${parametros.selected_reference_date_default_today_advanced_raw}, DAY)
+          THEN 'reference'
+        WHEN ${data_ref_date} BETWEEN DATE_TRUNC(DATE_TRUNC(DATE_SUB(${parametros.selected_reference_date_default_today_advanced_raw}, INTERVAL 1 YEAR), YEAR), MONTH) AND DATE_TRUNC(DATE_SUB(${parametros.selected_reference_date_default_today_advanced_raw}, INTERVAL 1 YEAR), MONTH)
+          THEN 'comparison'
+        ELSE NULL
+      END
+    {% else %}
+      {% if parametros.select_comparison._parameter_value == "year" %}
+        CASE
+          WHEN DATE_TRUNC(${data_ref_raw},  {% parameter parametros.select_timeframe_advanced %}) = DATE_TRUNC(${parametros.selected_reference_date_default_today_advanced_raw}, {% parameter parametros.select_timeframe_advanced %})
+            THEN 'reference'
+          WHEN DATE_TRUNC(${data_ref_raw},  {% parameter parametros.select_timeframe_advanced %}) = DATE_TRUNC(DATE_SUB(${parametros.selected_reference_date_default_today_advanced_raw}, INTERVAL 1 YEAR), {% parameter parametros.select_timeframe_advanced %})
+            THEN 'comparison'
+          ELSE NULL
+        END
+      {% elsif parametros.select_comparison._parameter_value == "period" %}
+        CASE
+          WHEN DATE_TRUNC(${data_ref_raw},  {% parameter parametros.select_timeframe_advanced %}) = DATE_TRUNC(${parametros.selected_reference_date_default_today_advanced_raw}, {% parameter parametros.select_timeframe_advanced %})
+            THEN 'reference'
+          WHEN DATE_TRUNC(${data_ref_raw},  {% parameter parametros.select_timeframe_advanced %}) = DATE_TRUNC(DATE_SUB(${parametros.selected_reference_date_default_today_advanced_raw}, INTERVAL {% parameter parametros.numero_intervalo %} {% parameter parametros.select_timeframe_advanced %}), {% parameter parametros.select_timeframe_advanced %})
+            THEN 'comparison'
+          ELSE NULL
+        END
+      {% endif %}
+    {% endif %}
+  ;;
+  }
+}
+
+
+
+
+
+parametros tb_resumo_diario_parameters.view
+
+
+
+
+view: parametros{
+  parameter: select_timeframe_advanced {
+    label: "Select Timeframe"
+    type: unquoted
+    default_value: "day"
+    allowed_value: {
+      value: "year"
+      label: "Years"
+    }
+    allowed_value: {
+      value: "quarter"
+      label: "Quarter"
+    }
+    allowed_value: {
+      value: "month"
+      label: "Month"
+    }
+    allowed_value: {
+      value: "week"
+      label: "Weeks"
+    }
+    allowed_value: {
+      value: "day"
+      label: "Days"
+    }
+    allowed_value: {
+      value: "ytd"
+      label: "YTD"
+    }
+
+  }
+  parameter: select_comparison  {
+    label: "Select Comparison Type"
+    group_label: ""
+    group_item_label: ""
+
+    type: unquoted
+    default_value: "period"
+
+    allowed_value: {
+      label: "Previous Year"
+      value: "year"
+    }
+
+    allowed_value: {
+      label: "Previous Period"
+      value: "period"
+    }
+
+  }
+  parameter: apply_to_date_filter_advanced {
+    type: yesno
+    default_value: "false"
+  }
+
+  parameter: select_reference_date_advanced {
+    label: " Select Reference Date"
+    description: "Escolha qualquer data para comparar com o dia/semana/mês/ano anterior. Qualquer data durante uma semana/mês/ano funcionará como toda a semana/mês/ano"
+    type: date
+    convert_tz: no
+  }
+
+  parameter: numero_intervalo {
+    type: number
+    default_value: "1"
+    label: "Seleção numero do intrevalo"
+    description: "Escolha qualquer numero de intervalo para gerar a comparação"
+
+  }
+
+
+  ### CURRENT TIMESTAMP {
+
+  dimension_group: current_timestamp_advanced {
+    type: time
+    hidden: yes
+    timeframes: [raw, hour, date, week, month, month_name, month_num, year, hour_of_day, day_of_week_index, day_of_month, day_of_year]
+    sql: CURRENT_TIMESTAMP() ;; #### BIGQUERY
+
+  }
+  dimension: current_timestamp_month_of_quarter_advanced {
+    type: number
+    hidden: yes
+    sql:
+      CASE
+        WHEN ${current_timestamp_advanced_month_num} IN (1,4,7,10) THEN 1
+        WHEN ${current_timestamp_advanced_month_num} IN (2,5,8,11) THEN 2
+        ELSE 3
+      END
+    ;;
+  }
+  dimension_group: selected_reference_date_default_today_advanced {
+    description: "Esta dimensão garantirá que, quando \"Selecionar data de referência\" for definida no futuro, usaremos o dia atual como referência"
+    hidden: yes
+    type: time
+    convert_tz: no
+    datatype: date
+    timeframes: [raw,date,day_of_month,day_of_week,day_of_week_index,day_of_year,week, week_of_year, month, month_name, month_num, quarter, quarter_of_year, year]
+    sql:
+      case
+        when {% parameter select_reference_date_advanced %} is null
+        or ${current_timestamp_advanced_date} <= date({% parameter select_reference_date_advanced %})
+          then ${current_timestamp_advanced_date}
+        else date({% parameter select_reference_date_advanced %})
+      end
+    ;;
+
+### CURRENT TIMESTAMP }
+  }
+
+
+} ##fim view parametres
+
+
+
+
+
+
+dentro do model 
+
+
+
+explore: tb_resumo_diario {
+  label: "Resumo diario (fillrate)"
+  description: "Relatorio do resumo diario do fillrate que seria do saldo dos pedidos nas fases"
+}
+
+explore: +tb_resumo_diario {
+  sql_always_where:
+    1=1
+    {% if tb_resumo_diario.current_vs_previous_period_advanced._in_query %}AND ${current_vs_previous_period_advanced} IS NOT NULL{% endif %}
+    {% if parametros.apply_to_date_filter_advanced._is_filtered %}AND ${is_to_date_advanced}{% endif %}
+  ;;
+
+    join: parametros {}
+
+  }

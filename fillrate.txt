@@ -1,0 +1,1780 @@
+
+
+looker detalhe do fillrate com o filtro de calculo para retirar da venda ou não 
+
+
+
+
+
+view: vw_detalhes_fillrate {
+  derived_table: {
+    sql: select
+      tipo_filial
+      ,id_filial
+      ,Filial
+      ,regiao
+      ,zona_pedido
+      ,destino_transf
+      ,'01 - waiting_vend_acpt' as ponto_entrada
+      ,extract(year from wc_waiting_vend_acpt_revisado) as ano_ponto_entrada
+      ,extract(month from wc_waiting_vend_acpt_revisado) as mes_ponto_entrada
+      --,extract(day from wc_waiting_vend_acpt_revisado) as dia_ponto_entrada
+      ,count(pedido) contagem_total_pedidos
+      ,sum(valor_pedido) valor_total
+      ,sum(case when status_atual = 'wc-waiting_vend_acpt'
+            then 1
+            else 0
+            end) as contagem_WVA
+      ,sum(case when status_atual = 'wc-waiting_vend_acpt'
+            then valor_pedido
+            else 0
+            end) as valor_em_VWA
+      ,sum(case when status_atual = 'wc-in-separation'
+            then 1
+            else 0
+            end) as contagem_em_separacao
+      ,sum(case when status_atual = 'wc-in-separation'
+            then valor_pedido
+            else 0
+            end) as valor_em_separacao
+      ,round(AVG(LT_WVA_SEP),2) as LT_WVA_SEP
+      ,sum(case when status_atual = 'wc-ready-dispatch' and (ready_dispatch_com_flag_revisado is null or tipo_filial = '1P')
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_sem_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and (ready_dispatch_com_flag_revisado is null or tipo_filial = '1P')
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_sem_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and ready_dispatch_com_flag_revisado is not null and tipo_filial = '3P'
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_com_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and ready_dispatch_com_flag_revisado is not null and tipo_filial = '3P'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_com_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch-reversa'
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_em_reversa
+      ,sum(case when status_atual = 'wc-ready-dispatch-reversa'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_em_reversa
+      ,round(AVG(LT_SEP_DESP),2) as LT_SEP_DESP
+      ,round(AVG(LT_DESP_FLAG),2) as LT_DESP_FLAG
+      ,sum(case when status_atual = 'wc-in-hub'
+            then 1
+            else 0
+            end) as contagem_no_hub
+      ,sum(case when status_atual = 'wc-in-hub'
+            then valor_pedido
+            else 0
+            end) as valor_no_hub
+      ,sum(case when status_atual = 'wc-in-route-cd'
+            then 1
+            else 0
+            end) as contagem_em_rota_CD
+      ,sum(case when status_atual = 'wc-in-route-cd'
+            then valor_pedido
+            else 0
+            end) as valor_em_rota_CD
+      ,round(AVG(LT_DESP_ROTA_CD),2) as LT_DESP_ROTA_CD
+      ,sum(case when status_atual = 'wc-in-route-rua'
+            then 1
+            else 0
+            end) as contagem_em_rota_rua
+      ,sum(case when status_atual = 'wc-in-route-rua'
+            then valor_pedido
+            else 0
+            end) as valor_em_rota_rua
+      ,round(AVG(LT_ROTA_CD_ROTA_RUA),2) as LT_ROTA_CD_ROTA_RUA
+      ,sum(case when status_atual = 'wc-ready-collect'
+            then 1
+            else 0
+            end) as contagem_pronto_coleta
+      ,sum(case when status_atual = 'wc-ready-collect'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_coleta
+      ,round(AVG(LT_ROTA_RUA_COLETA),2) as LT_ROTA_RUA_COLETA
+      ,sum(case when status_atual = 'wc-delivery_finished'
+            then 1
+            else 0
+            end) as contagem_finalizado
+      ,sum(case when status_atual = 'wc-delivery_finished'
+            then valor_pedido
+            else 0
+            end) as valor_finalizado
+      ,round(AVG(LT_ROTA_RUA_COLETA),2) as LT_COLETA_FINESHED
+      ,sum(case when status_atual = 'wc-cancelled'
+            then 1
+            else 0
+            end) as contagem_cancelado
+      ,sum(case when status_atual = 'wc-cancelled'
+            then valor_pedido
+            else 0
+            end) as valor_cancelado
+      ,sum(case when status_atual = 'wc-refunded'
+            then 1
+            else 0
+            end) as contagem_refunded
+      ,sum(case when status_atual = 'wc-refunded'
+            then valor_pedido
+            else 0
+            end) as valor_refunded
+      ,sum(case when status_atual = 'wc-returned'
+            then 1
+            else 0
+            end) as contagem_returned
+      ,sum(case when status_atual = 'wc-returned'
+            then valor_pedido
+            else 0
+            end) as valor_returned
+      ,sum(case when status_atual not in ('wc-returned','wc-refunded','wc-cancelled','wc-delivery_finished','wc-ready-collect','wc-in-route-rua','wc-in-route-cd','wc-in-hub','wc-ready-dispatch-reversa','wc-ready-dispatch','wc-in-separation','wc-waiting_vend_acpt')
+            then 1
+            else 0
+            end) as contagem_outros_status
+      ,sum(case when status_atual not in ('wc-returned','wc-refunded','wc-cancelled','wc-delivery_finished','wc-ready-collect','wc-in-route-rua','wc-in-route-cd','wc-in-hub','wc-ready-dispatch-reversa','wc-ready-dispatch','wc-in-separation','wc-waiting_vend_acpt')
+            then valor_pedido
+            else 0
+            end) as valor_outros_status
+      ,round(AVG(LT_total),2) as LT_total
+      from `facily-817c2.facily_wp_logistic_aux.TB_detalhes_fillrate` a
+      where date(wc_waiting_vend_acpt_revisado) >= '2021-11-01'
+      and date(wc_waiting_vend_acpt_revisado) <= current_date('America/Sao_Paulo') -7
+      group by 1,2,3,4,5,6,7,8,9
+
+
+      union all
+
+      select
+      tipo_filial
+      ,id_filial
+      ,Filial
+      ,regiao
+      ,zona_pedido
+      ,destino_transf
+      ,'02 - in_separation' as ponto_entrada
+      ,extract(year from in_separation_revisado) as ano_ponto_entrada
+      ,extract(month from in_separation_revisado) as mes_ponto_entrada
+      --,extract(day from in_separation_revisado) as dia_ponto_entrada
+      ,count(pedido) contagem_total_pedidos
+      ,sum(valor_pedido) valor_total
+      ,sum(case when status_atual = 'wc-waiting_vend_acpt'
+            then 1
+            else 0
+            end) as contagem_WVA
+      ,sum(case when status_atual = 'wc-waiting_vend_acpt'
+            then valor_pedido
+            else 0
+            end) as valor_em_VWA
+      ,sum(case when status_atual = 'wc-in-separation'
+            then 1
+            else 0
+            end) as contagem_em_separacao
+      ,sum(case when status_atual = 'wc-in-separation'
+            then valor_pedido
+            else 0
+            end) as valor_em_separacao
+      ,round(AVG(LT_WVA_SEP),2) as LT_WVA_SEP
+      ,sum(case when status_atual = 'wc-ready-dispatch' and (ready_dispatch_com_flag_revisado is null or tipo_filial = '1P')
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_sem_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and (ready_dispatch_com_flag_revisado is null or tipo_filial = '1P')
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_sem_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and ready_dispatch_com_flag_revisado is not null and tipo_filial = '3P'
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_com_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and ready_dispatch_com_flag_revisado is not null and tipo_filial = '3P'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_com_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch-reversa'
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_em_reversa
+      ,sum(case when status_atual = 'wc-ready-dispatch-reversa'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_em_reversa
+      ,round(AVG(LT_SEP_DESP),2) as LT_SEP_DESP
+      ,round(AVG(LT_DESP_FLAG),2) as LT_DESP_FLAG
+      ,sum(case when status_atual = 'wc-in-hub'
+            then 1
+            else 0
+            end) as contagem_no_hub
+      ,sum(case when status_atual = 'wc-in-hub'
+            then valor_pedido
+            else 0
+            end) as valor_no_hub
+      ,sum(case when status_atual = 'wc-in-route-cd'
+            then 1
+            else 0
+            end) as contagem_em_rota_CD
+      ,sum(case when status_atual = 'wc-in-route-cd'
+            then valor_pedido
+            else 0
+            end) as valor_em_rota_CD
+      ,round(AVG(LT_DESP_ROTA_CD),2) as LT_DESP_ROTA_CD
+      ,sum(case when status_atual = 'wc-in-route-rua'
+            then 1
+            else 0
+            end) as contagem_em_rota_rua
+      ,sum(case when status_atual = 'wc-in-route-rua'
+            then valor_pedido
+            else 0
+            end) as valor_em_rota_rua
+      ,round(AVG(LT_ROTA_CD_ROTA_RUA),2) as LT_ROTA_CD_ROTA_RUA
+      ,sum(case when status_atual = 'wc-ready-collect'
+            then 1
+            else 0
+            end) as contagem_pronto_coleta
+      ,sum(case when status_atual = 'wc-ready-collect'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_coleta
+      ,round(AVG(LT_ROTA_RUA_COLETA),2) as LT_ROTA_RUA_COLETA
+      ,sum(case when status_atual = 'wc-delivery_finished'
+            then 1
+            else 0
+            end) as contagem_finalizado
+      ,sum(case when status_atual = 'wc-delivery_finished'
+            then valor_pedido
+            else 0
+            end) as valor_finalizado
+      ,round(AVG(LT_ROTA_RUA_COLETA),2) as LT_COLETA_FINESHED
+      ,sum(case when status_atual = 'wc-cancelled'
+            then 1
+            else 0
+            end) as contagem_cancelado
+      ,sum(case when status_atual = 'wc-cancelled'
+            then valor_pedido
+            else 0
+            end) as valor_cancelado
+      ,sum(case when status_atual = 'wc-refunded'
+            then 1
+            else 0
+            end) as contagem_refunded
+      ,sum(case when status_atual = 'wc-refunded'
+            then valor_pedido
+            else 0
+            end) as valor_refunded
+      ,sum(case when status_atual = 'wc-returned'
+            then 1
+            else 0
+            end) as contagem_returned
+      ,sum(case when status_atual = 'wc-returned'
+            then valor_pedido
+            else 0
+            end) as valor_returned
+      ,sum(case when status_atual not in ('wc-returned','wc-refunded','wc-cancelled','wc-delivery_finished','wc-ready-collect','wc-in-route-rua','wc-in-route-cd','wc-in-hub','wc-ready-dispatch-reversa','wc-ready-dispatch','wc-in-separation','wc-waiting_vend_acpt')
+            then 1
+            else 0
+            end) as contagem_outros_status
+      ,sum(case when status_atual not in ('wc-returned','wc-refunded','wc-cancelled','wc-delivery_finished','wc-ready-collect','wc-in-route-rua','wc-in-route-cd','wc-in-hub','wc-ready-dispatch-reversa','wc-ready-dispatch','wc-in-separation','wc-waiting_vend_acpt')
+            then valor_pedido
+            else 0
+            end) as valor_outros_status
+      ,round(AVG(LT_total),2) as LT_total
+      from `facily-817c2.facily_wp_logistic_aux.TB_detalhes_fillrate` a
+      where date(in_separation_revisado) >= '2021-11-01'
+      and date(in_separation_revisado) <= current_date('America/Sao_Paulo') -7
+      group by 1,2,3,4,5,6,7,8,9
+
+      union all
+
+      select
+      tipo_filial
+      ,id_filial
+      ,Filial
+      ,regiao
+      ,zona_pedido
+      ,destino_transf
+      ,'03 - ready_dispatch_sem_flag' as ponto_entrada
+      ,extract(year from ready_dispatch_sem_flag_revisado) as ano_ponto_entrada
+      ,extract(month from ready_dispatch_sem_flag_revisado) as mes_ponto_entrada
+      --,extract(day from ready_dispatch_sem_flag_revisado) as dia_ponto_entrada
+      ,count(pedido) contagem_total_pedidos
+      ,sum(valor_pedido) valor_total
+      ,sum(case when status_atual = 'wc-waiting_vend_acpt'
+            then 1
+            else 0
+            end) as contagem_WVA
+      ,sum(case when status_atual = 'wc-waiting_vend_acpt'
+            then valor_pedido
+            else 0
+            end) as valor_em_VWA
+      ,sum(case when status_atual = 'wc-in-separation'
+            then 1
+            else 0
+            end) as contagem_em_separacao
+      ,sum(case when status_atual = 'wc-in-separation'
+            then valor_pedido
+            else 0
+            end) as valor_em_separacao
+      ,round(AVG(LT_WVA_SEP),2) as LT_WVA_SEP
+      ,sum(case when status_atual = 'wc-ready-dispatch' and (ready_dispatch_com_flag_revisado is null or tipo_filial = '1P')
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_sem_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and (ready_dispatch_com_flag_revisado is null or tipo_filial = '1P')
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_sem_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and ready_dispatch_com_flag_revisado is not null and tipo_filial = '3P'
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_com_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and ready_dispatch_com_flag_revisado is not null and tipo_filial = '3P'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_com_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch-reversa'
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_em_reversa
+      ,sum(case when status_atual = 'wc-ready-dispatch-reversa'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_em_reversa
+      ,round(AVG(LT_SEP_DESP),2) as LT_SEP_DESP
+      ,round(AVG(LT_DESP_FLAG),2) as LT_DESP_FLAG
+      ,sum(case when status_atual = 'wc-in-hub'
+            then 1
+            else 0
+            end) as contagem_no_hub
+      ,sum(case when status_atual = 'wc-in-hub'
+            then valor_pedido
+            else 0
+            end) as valor_no_hub
+      ,sum(case when status_atual = 'wc-in-route-cd'
+            then 1
+            else 0
+            end) as contagem_em_rota_CD
+      ,sum(case when status_atual = 'wc-in-route-cd'
+            then valor_pedido
+            else 0
+            end) as valor_em_rota_CD
+      ,round(AVG(LT_DESP_ROTA_CD),2) as LT_DESP_ROTA_CD
+      ,sum(case when status_atual = 'wc-in-route-rua'
+            then 1
+            else 0
+            end) as contagem_em_rota_rua
+      ,sum(case when status_atual = 'wc-in-route-rua'
+            then valor_pedido
+            else 0
+            end) as valor_em_rota_rua
+      ,round(AVG(LT_ROTA_CD_ROTA_RUA),2) as LT_ROTA_CD_ROTA_RUA
+      ,sum(case when status_atual = 'wc-ready-collect'
+            then 1
+            else 0
+            end) as contagem_pronto_coleta
+      ,sum(case when status_atual = 'wc-ready-collect'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_coleta
+      ,round(AVG(LT_ROTA_RUA_COLETA),2) as LT_ROTA_RUA_COLETA
+      ,sum(case when status_atual = 'wc-delivery_finished'
+            then 1
+            else 0
+            end) as contagem_finalizado
+      ,sum(case when status_atual = 'wc-delivery_finished'
+            then valor_pedido
+            else 0
+            end) as valor_finalizado
+      ,round(AVG(LT_ROTA_RUA_COLETA),2) as LT_COLETA_FINESHED
+      ,sum(case when status_atual = 'wc-cancelled'
+            then 1
+            else 0
+            end) as contagem_cancelado
+      ,sum(case when status_atual = 'wc-cancelled'
+            then valor_pedido
+            else 0
+            end) as valor_cancelado
+      ,sum(case when status_atual = 'wc-refunded'
+            then 1
+            else 0
+            end) as contagem_refunded
+      ,sum(case when status_atual = 'wc-refunded'
+            then valor_pedido
+            else 0
+            end) as valor_refunded
+      ,sum(case when status_atual = 'wc-returned'
+            then 1
+            else 0
+            end) as contagem_returned
+      ,sum(case when status_atual = 'wc-returned'
+            then valor_pedido
+            else 0
+            end) as valor_returned
+      ,sum(case when status_atual not in ('wc-returned','wc-refunded','wc-cancelled','wc-delivery_finished','wc-ready-collect','wc-in-route-rua','wc-in-route-cd','wc-in-hub','wc-ready-dispatch-reversa','wc-ready-dispatch','wc-in-separation','wc-waiting_vend_acpt')
+            then 1
+            else 0
+            end) as contagem_outros_status
+      ,sum(case when status_atual not in ('wc-returned','wc-refunded','wc-cancelled','wc-delivery_finished','wc-ready-collect','wc-in-route-rua','wc-in-route-cd','wc-in-hub','wc-ready-dispatch-reversa','wc-ready-dispatch','wc-in-separation','wc-waiting_vend_acpt')
+            then valor_pedido
+            else 0
+            end) as valor_outros_status
+      ,round(AVG(LT_total),2) as LT_total
+      from `facily-817c2.facily_wp_logistic_aux.TB_detalhes_fillrate` a
+      where date(ready_dispatch_sem_flag_revisado) >= '2021-11-01'
+      and date(ready_dispatch_sem_flag_revisado) <= current_date('America/Sao_Paulo') -7
+      group by 1,2,3,4,5,6,7,8,9
+
+      union all
+
+      select
+      tipo_filial
+      ,id_filial
+      ,Filial
+      ,regiao
+      ,zona_pedido
+      ,destino_transf
+      ,'04 - ready_dispatch_com_flag' as ponto_entrada
+      ,extract(year from ready_dispatch_com_flag_revisado) as ano_ponto_entrada
+      ,extract(month from ready_dispatch_com_flag_revisado) as mes_ponto_entrada
+      --,extract(day from ready_dispatch_com_flag_revisado) as dia_ponto_entrada
+      ,count(pedido) contagem_total_pedidos
+      ,sum(valor_pedido) valor_total
+      ,sum(case when status_atual = 'wc-waiting_vend_acpt'
+            then 1
+            else 0
+            end) as contagem_WVA
+      ,sum(case when status_atual = 'wc-waiting_vend_acpt'
+            then valor_pedido
+            else 0
+            end) as valor_em_VWA
+      ,sum(case when status_atual = 'wc-in-separation'
+            then 1
+            else 0
+            end) as contagem_em_separacao
+      ,sum(case when status_atual = 'wc-in-separation'
+            then valor_pedido
+            else 0
+            end) as valor_em_separacao
+      ,round(AVG(LT_WVA_SEP),2) as LT_WVA_SEP
+      ,sum(case when status_atual = 'wc-ready-dispatch' and (ready_dispatch_com_flag_revisado is null or tipo_filial = '1P')
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_sem_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and (ready_dispatch_com_flag_revisado is null or tipo_filial = '1P')
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_sem_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and ready_dispatch_com_flag_revisado is not null and tipo_filial = '3P'
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_com_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and ready_dispatch_com_flag_revisado is not null and tipo_filial = '3P'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_com_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch-reversa'
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_em_reversa
+      ,sum(case when status_atual = 'wc-ready-dispatch-reversa'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_em_reversa
+      ,round(AVG(LT_SEP_DESP),2) as LT_SEP_DESP
+      ,round(AVG(LT_DESP_FLAG),2) as LT_DESP_FLAG
+      ,sum(case when status_atual = 'wc-in-hub'
+            then 1
+            else 0
+            end) as contagem_no_hub
+      ,sum(case when status_atual = 'wc-in-hub'
+            then valor_pedido
+            else 0
+            end) as valor_no_hub
+      ,sum(case when status_atual = 'wc-in-route-cd'
+            then 1
+            else 0
+            end) as contagem_em_rota_CD
+      ,sum(case when status_atual = 'wc-in-route-cd'
+            then valor_pedido
+            else 0
+            end) as valor_em_rota_CD
+      ,round(AVG(LT_DESP_ROTA_CD),2) as LT_DESP_ROTA_CD
+      ,sum(case when status_atual = 'wc-in-route-rua'
+            then 1
+            else 0
+            end) as contagem_em_rota_rua
+      ,sum(case when status_atual = 'wc-in-route-rua'
+            then valor_pedido
+            else 0
+            end) as valor_em_rota_rua
+      ,round(AVG(LT_ROTA_CD_ROTA_RUA),2) as LT_ROTA_CD_ROTA_RUA
+      ,sum(case when status_atual = 'wc-ready-collect'
+            then 1
+            else 0
+            end) as contagem_pronto_coleta
+      ,sum(case when status_atual = 'wc-ready-collect'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_coleta
+      ,round(AVG(LT_ROTA_RUA_COLETA),2) as LT_ROTA_RUA_COLETA
+      ,sum(case when status_atual = 'wc-delivery_finished'
+            then 1
+            else 0
+            end) as contagem_finalizado
+      ,sum(case when status_atual = 'wc-delivery_finished'
+            then valor_pedido
+            else 0
+            end) as valor_finalizado
+      ,round(AVG(LT_ROTA_RUA_COLETA),2) as LT_COLETA_FINESHED
+      ,sum(case when status_atual = 'wc-cancelled'
+            then 1
+            else 0
+            end) as contagem_cancelado
+      ,sum(case when status_atual = 'wc-cancelled'
+            then valor_pedido
+            else 0
+            end) as valor_cancelado
+      ,sum(case when status_atual = 'wc-refunded'
+            then 1
+            else 0
+            end) as contagem_refunded
+      ,sum(case when status_atual = 'wc-refunded'
+            then valor_pedido
+            else 0
+            end) as valor_refunded
+      ,sum(case when status_atual = 'wc-returned'
+            then 1
+            else 0
+            end) as contagem_returned
+      ,sum(case when status_atual = 'wc-returned'
+            then valor_pedido
+            else 0
+            end) as valor_returned
+      ,sum(case when status_atual not in ('wc-returned','wc-refunded','wc-cancelled','wc-delivery_finished','wc-ready-collect','wc-in-route-rua','wc-in-route-cd','wc-in-hub','wc-ready-dispatch-reversa','wc-ready-dispatch','wc-in-separation','wc-waiting_vend_acpt')
+            then 1
+            else 0
+            end) as contagem_outros_status
+      ,sum(case when status_atual not in ('wc-returned','wc-refunded','wc-cancelled','wc-delivery_finished','wc-ready-collect','wc-in-route-rua','wc-in-route-cd','wc-in-hub','wc-ready-dispatch-reversa','wc-ready-dispatch','wc-in-separation','wc-waiting_vend_acpt')
+            then valor_pedido
+            else 0
+            end) as valor_outros_status
+      ,round(AVG(LT_total),2) as LT_total
+      from `facily-817c2.facily_wp_logistic_aux.TB_detalhes_fillrate` a
+      where date(ready_dispatch_com_flag_revisado) >= '2021-11-01'
+      and date(ready_dispatch_com_flag_revisado) <= current_date('America/Sao_Paulo') -7
+      group by 1,2,3,4,5,6,7,8,9
+
+      union all
+
+      select
+      tipo_filial
+      ,id_filial
+      ,Filial
+      ,regiao
+      ,zona_pedido
+      ,destino_transf
+      ,'05 - in_hub' as ponto_entrada
+      ,extract(year from dt_entrada_hub) as ano_ponto_entrada
+      ,extract(month from dt_entrada_hub) as mes_ponto_entrada
+      --,extract(day from dt_entrada_hub) as dia_ponto_entrada
+      ,count(pedido) contagem_total_pedidos
+      ,sum(valor_pedido) valor_total
+      ,sum(case when status_atual = 'wc-waiting_vend_acpt'
+            then 1
+            else 0
+            end) as contagem_WVA
+      ,sum(case when status_atual = 'wc-waiting_vend_acpt'
+            then valor_pedido
+            else 0
+            end) as valor_em_VWA
+      ,sum(case when status_atual = 'wc-in-separation'
+            then 1
+            else 0
+            end) as contagem_em_separacao
+      ,sum(case when status_atual = 'wc-in-separation'
+            then valor_pedido
+            else 0
+            end) as valor_em_separacao
+      ,round(AVG(LT_WVA_SEP),2) as LT_WVA_SEP
+      ,sum(case when status_atual = 'wc-ready-dispatch' and (ready_dispatch_com_flag_revisado is null or tipo_filial = '1P')
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_sem_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and (ready_dispatch_com_flag_revisado is null or tipo_filial = '1P')
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_sem_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and ready_dispatch_com_flag_revisado is not null and tipo_filial = '3P'
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_com_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and ready_dispatch_com_flag_revisado is not null and tipo_filial = '3P'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_com_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch-reversa'
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_em_reversa
+      ,sum(case when status_atual = 'wc-ready-dispatch-reversa'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_em_reversa
+      ,round(AVG(LT_SEP_DESP),2) as LT_SEP_DESP
+      ,round(AVG(LT_DESP_FLAG),2) as LT_DESP_FLAG
+      ,sum(case when status_atual = 'wc-in-hub'
+            then 1
+            else 0
+            end) as contagem_no_hub
+      ,sum(case when status_atual = 'wc-in-hub'
+            then valor_pedido
+            else 0
+            end) as valor_no_hub
+      ,sum(case when status_atual = 'wc-in-route-cd'
+            then 1
+            else 0
+            end) as contagem_em_rota_CD
+      ,sum(case when status_atual = 'wc-in-route-cd'
+            then valor_pedido
+            else 0
+            end) as valor_em_rota_CD
+      ,round(AVG(LT_DESP_ROTA_CD),2) as LT_DESP_ROTA_CD
+      ,sum(case when status_atual = 'wc-in-route-rua'
+            then 1
+            else 0
+            end) as contagem_em_rota_rua
+      ,sum(case when status_atual = 'wc-in-route-rua'
+            then valor_pedido
+            else 0
+            end) as valor_em_rota_rua
+      ,round(AVG(LT_ROTA_CD_ROTA_RUA),2) as LT_ROTA_CD_ROTA_RUA
+      ,sum(case when status_atual = 'wc-ready-collect'
+            then 1
+            else 0
+            end) as contagem_pronto_coleta
+      ,sum(case when status_atual = 'wc-ready-collect'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_coleta
+      ,round(AVG(LT_ROTA_RUA_COLETA),2) as LT_ROTA_RUA_COLETA
+      ,sum(case when status_atual = 'wc-delivery_finished'
+            then 1
+            else 0
+            end) as contagem_finalizado
+      ,sum(case when status_atual = 'wc-delivery_finished'
+            then valor_pedido
+            else 0
+            end) as valor_finalizado
+      ,round(AVG(LT_ROTA_RUA_COLETA),2) as LT_COLETA_FINESHED
+      ,sum(case when status_atual = 'wc-cancelled'
+            then 1
+            else 0
+            end) as contagem_cancelado
+      ,sum(case when status_atual = 'wc-cancelled'
+            then valor_pedido
+            else 0
+            end) as valor_cancelado
+      ,sum(case when status_atual = 'wc-refunded'
+            then 1
+            else 0
+            end) as contagem_refunded
+      ,sum(case when status_atual = 'wc-refunded'
+            then valor_pedido
+            else 0
+            end) as valor_refunded
+      ,sum(case when status_atual = 'wc-returned'
+            then 1
+            else 0
+            end) as contagem_returned
+      ,sum(case when status_atual = 'wc-returned'
+            then valor_pedido
+            else 0
+            end) as valor_returned
+      ,sum(case when status_atual not in ('wc-returned','wc-refunded','wc-cancelled','wc-delivery_finished','wc-ready-collect','wc-in-route-rua','wc-in-route-cd','wc-in-hub','wc-ready-dispatch-reversa','wc-ready-dispatch','wc-in-separation','wc-waiting_vend_acpt')
+            then 1
+            else 0
+            end) as contagem_outros_status
+      ,sum(case when status_atual not in ('wc-returned','wc-refunded','wc-cancelled','wc-delivery_finished','wc-ready-collect','wc-in-route-rua','wc-in-route-cd','wc-in-hub','wc-ready-dispatch-reversa','wc-ready-dispatch','wc-in-separation','wc-waiting_vend_acpt')
+            then valor_pedido
+            else 0
+            end) as valor_outros_status
+      ,round(AVG(LT_total),2) as LT_total
+      from `facily-817c2.facily_wp_logistic_aux.TB_detalhes_fillrate` a
+      where date(dt_entrada_hub) >= '2021-11-01'
+      and date(dt_entrada_hub) <= current_date('America/Sao_Paulo') -7
+      group by 1,2,3,4,5,6,7,8,9
+
+      union all
+
+      select
+      tipo_filial
+      ,id_filial
+      ,Filial
+      ,regiao
+      ,zona_pedido
+      ,destino_transf
+      ,'06 - in_route_cd' as ponto_entrada
+      ,extract(year from in_route_cd_revisado) as ano_ponto_entrada
+      ,extract(month from in_route_cd_revisado) as mes_ponto_entrada
+      --,extract(day from in_route_cd_revisado) as dia_ponto_entrada
+      ,count(pedido) contagem_total_pedidos
+      ,sum(valor_pedido) valor_total
+      ,sum(case when status_atual = 'wc-waiting_vend_acpt'
+            then 1
+            else 0
+            end) as contagem_WVA
+      ,sum(case when status_atual = 'wc-waiting_vend_acpt'
+            then valor_pedido
+            else 0
+            end) as valor_em_VWA
+      ,sum(case when status_atual = 'wc-in-separation'
+            then 1
+            else 0
+            end) as contagem_em_separacao
+      ,sum(case when status_atual = 'wc-in-separation'
+            then valor_pedido
+            else 0
+            end) as valor_em_separacao
+      ,round(AVG(LT_WVA_SEP),2) as LT_WVA_SEP
+      ,sum(case when status_atual = 'wc-ready-dispatch' and (ready_dispatch_com_flag_revisado is null or tipo_filial = '1P')
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_sem_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and (ready_dispatch_com_flag_revisado is null or tipo_filial = '1P')
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_sem_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and ready_dispatch_com_flag_revisado is not null and tipo_filial = '3P'
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_com_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and ready_dispatch_com_flag_revisado is not null and tipo_filial = '3P'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_com_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch-reversa'
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_em_reversa
+      ,sum(case when status_atual = 'wc-ready-dispatch-reversa'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_em_reversa
+      ,round(AVG(LT_SEP_DESP),2) as LT_SEP_DESP
+      ,round(AVG(LT_DESP_FLAG),2) as LT_DESP_FLAG
+      ,sum(case when status_atual = 'wc-in-hub'
+            then 1
+            else 0
+            end) as contagem_no_hub
+      ,sum(case when status_atual = 'wc-in-hub'
+            then valor_pedido
+            else 0
+            end) as valor_no_hub
+      ,sum(case when status_atual = 'wc-in-route-cd'
+            then 1
+            else 0
+            end) as contagem_em_rota_CD
+      ,sum(case when status_atual = 'wc-in-route-cd'
+            then valor_pedido
+            else 0
+            end) as valor_em_rota_CD
+      ,round(AVG(LT_DESP_ROTA_CD),2) as LT_DESP_ROTA_CD
+      ,sum(case when status_atual = 'wc-in-route-rua'
+            then 1
+            else 0
+            end) as contagem_em_rota_rua
+      ,sum(case when status_atual = 'wc-in-route-rua'
+            then valor_pedido
+            else 0
+            end) as valor_em_rota_rua
+      ,round(AVG(LT_ROTA_CD_ROTA_RUA),2) as LT_ROTA_CD_ROTA_RUA
+      ,sum(case when status_atual = 'wc-ready-collect'
+            then 1
+            else 0
+            end) as contagem_pronto_coleta
+      ,sum(case when status_atual = 'wc-ready-collect'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_coleta
+      ,round(AVG(LT_ROTA_RUA_COLETA),2) as LT_ROTA_RUA_COLETA
+      ,sum(case when status_atual = 'wc-delivery_finished'
+            then 1
+            else 0
+            end) as contagem_finalizado
+      ,sum(case when status_atual = 'wc-delivery_finished'
+            then valor_pedido
+            else 0
+            end) as valor_finalizado
+      ,round(AVG(LT_ROTA_RUA_COLETA),2) as LT_COLETA_FINESHED
+      ,sum(case when status_atual = 'wc-cancelled'
+            then 1
+            else 0
+            end) as contagem_cancelado
+      ,sum(case when status_atual = 'wc-cancelled'
+            then valor_pedido
+            else 0
+            end) as valor_cancelado
+      ,sum(case when status_atual = 'wc-refunded'
+            then 1
+            else 0
+            end) as contagem_refunded
+      ,sum(case when status_atual = 'wc-refunded'
+            then valor_pedido
+            else 0
+            end) as valor_refunded
+      ,sum(case when status_atual = 'wc-returned'
+            then 1
+            else 0
+            end) as contagem_returned
+      ,sum(case when status_atual = 'wc-returned'
+            then valor_pedido
+            else 0
+            end) as valor_returned
+      ,sum(case when status_atual not in ('wc-returned','wc-refunded','wc-cancelled','wc-delivery_finished','wc-ready-collect','wc-in-route-rua','wc-in-route-cd','wc-in-hub','wc-ready-dispatch-reversa','wc-ready-dispatch','wc-in-separation','wc-waiting_vend_acpt')
+            then 1
+            else 0
+            end) as contagem_outros_status
+      ,sum(case when status_atual not in ('wc-returned','wc-refunded','wc-cancelled','wc-delivery_finished','wc-ready-collect','wc-in-route-rua','wc-in-route-cd','wc-in-hub','wc-ready-dispatch-reversa','wc-ready-dispatch','wc-in-separation','wc-waiting_vend_acpt')
+            then valor_pedido
+            else 0
+            end) as valor_outros_status
+      ,round(AVG(LT_total),2) as LT_total
+      from `facily-817c2.facily_wp_logistic_aux.TB_detalhes_fillrate` a
+      where date(in_route_cd_revisado) >= '2021-11-01'
+      and date(in_route_cd_revisado) <= current_date('America/Sao_Paulo') -7
+      group by 1,2,3,4,5,6,7,8,9
+
+      union all
+
+      select
+      tipo_filial
+      ,id_filial
+      ,Filial
+      ,regiao
+      ,zona_pedido
+      ,destino_transf
+      ,'07 - in_route_rua' as ponto_entrada
+      ,extract(year from in_route_rua) as ano_ponto_entrada
+      ,extract(month from in_route_rua) as mes_ponto_entrada
+      --,extract(day from in_route_rua) as dia_ponto_entrada
+      ,count(pedido) contagem_total_pedidos
+      ,sum(valor_pedido) valor_total
+      ,sum(case when status_atual = 'wc-waiting_vend_acpt'
+            then 1
+            else 0
+            end) as contagem_WVA
+      ,sum(case when status_atual = 'wc-waiting_vend_acpt'
+            then valor_pedido
+            else 0
+            end) as valor_em_VWA
+      ,sum(case when status_atual = 'wc-in-separation'
+            then 1
+            else 0
+            end) as contagem_em_separacao
+      ,sum(case when status_atual = 'wc-in-separation'
+            then valor_pedido
+            else 0
+            end) as valor_em_separacao
+      ,round(AVG(LT_WVA_SEP),2) as LT_WVA_SEP
+      ,sum(case when status_atual = 'wc-ready-dispatch' and (ready_dispatch_com_flag_revisado is null or tipo_filial = '1P')
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_sem_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and (ready_dispatch_com_flag_revisado is null or tipo_filial = '1P')
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_sem_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and ready_dispatch_com_flag_revisado is not null and tipo_filial = '3P'
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_com_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and ready_dispatch_com_flag_revisado is not null and tipo_filial = '3P'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_com_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch-reversa'
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_em_reversa
+      ,sum(case when status_atual = 'wc-ready-dispatch-reversa'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_em_reversa
+      ,round(AVG(LT_SEP_DESP),2) as LT_SEP_DESP
+      ,round(AVG(LT_DESP_FLAG),2) as LT_DESP_FLAG
+      ,sum(case when status_atual = 'wc-in-hub'
+            then 1
+            else 0
+            end) as contagem_no_hub
+      ,sum(case when status_atual = 'wc-in-hub'
+            then valor_pedido
+            else 0
+            end) as valor_no_hub
+      ,sum(case when status_atual = 'wc-in-route-cd'
+            then 1
+            else 0
+            end) as contagem_em_rota_CD
+      ,sum(case when status_atual = 'wc-in-route-cd'
+            then valor_pedido
+            else 0
+            end) as valor_em_rota_CD
+      ,round(AVG(LT_DESP_ROTA_CD),2) as LT_DESP_ROTA_CD
+      ,sum(case when status_atual = 'wc-in-route-rua'
+            then 1
+            else 0
+            end) as contagem_em_rota_rua
+      ,sum(case when status_atual = 'wc-in-route-rua'
+            then valor_pedido
+            else 0
+            end) as valor_em_rota_rua
+      ,round(AVG(LT_ROTA_CD_ROTA_RUA),2) as LT_ROTA_CD_ROTA_RUA
+      ,sum(case when status_atual = 'wc-ready-collect'
+            then 1
+            else 0
+            end) as contagem_pronto_coleta
+      ,sum(case when status_atual = 'wc-ready-collect'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_coleta
+      ,round(AVG(LT_ROTA_RUA_COLETA),2) as LT_ROTA_RUA_COLETA
+      ,sum(case when status_atual = 'wc-delivery_finished'
+            then 1
+            else 0
+            end) as contagem_finalizado
+      ,sum(case when status_atual = 'wc-delivery_finished'
+            then valor_pedido
+            else 0
+            end) as valor_finalizado
+      ,round(AVG(LT_ROTA_RUA_COLETA),2) as LT_COLETA_FINESHED
+      ,sum(case when status_atual = 'wc-cancelled'
+            then 1
+            else 0
+            end) as contagem_cancelado
+      ,sum(case when status_atual = 'wc-cancelled'
+            then valor_pedido
+            else 0
+            end) as valor_cancelado
+      ,sum(case when status_atual = 'wc-refunded'
+            then 1
+            else 0
+            end) as contagem_refunded
+      ,sum(case when status_atual = 'wc-refunded'
+            then valor_pedido
+            else 0
+            end) as valor_refunded
+      ,sum(case when status_atual = 'wc-returned'
+            then 1
+            else 0
+            end) as contagem_returned
+      ,sum(case when status_atual = 'wc-returned'
+            then valor_pedido
+            else 0
+            end) as valor_returned
+      ,sum(case when status_atual not in ('wc-returned','wc-refunded','wc-cancelled','wc-delivery_finished','wc-ready-collect','wc-in-route-rua','wc-in-route-cd','wc-in-hub','wc-ready-dispatch-reversa','wc-ready-dispatch','wc-in-separation','wc-waiting_vend_acpt')
+            then 1
+            else 0
+            end) as contagem_outros_status
+      ,sum(case when status_atual not in ('wc-returned','wc-refunded','wc-cancelled','wc-delivery_finished','wc-ready-collect','wc-in-route-rua','wc-in-route-cd','wc-in-hub','wc-ready-dispatch-reversa','wc-ready-dispatch','wc-in-separation','wc-waiting_vend_acpt')
+            then valor_pedido
+            else 0
+            end) as valor_outros_status
+      ,round(AVG(LT_total),2) as LT_total
+      from `facily-817c2.facily_wp_logistic_aux.TB_detalhes_fillrate` a
+      where date(in_route_rua) >= '2021-11-01'
+      and date(in_route_rua) <= current_date('America/Sao_Paulo') -7
+      group by 1,2,3,4,5,6,7,8,9
+
+      union all
+
+      select
+      tipo_filial
+      ,id_filial
+      ,Filial
+      ,regiao
+      ,zona_pedido
+      ,destino_transf
+      ,'08 - ready_collect' as ponto_entrada
+      ,extract(year from ready_collect_revisado) as ano_ponto_entrada
+      ,extract(month from ready_collect_revisado) as mes_ponto_entrada
+      --,extract(day from ready_collect_revisado) as dia_ponto_entrada
+      ,count(pedido) contagem_total_pedidos
+      ,sum(valor_pedido) valor_total
+      ,sum(case when status_atual = 'wc-waiting_vend_acpt'
+            then 1
+            else 0
+            end) as contagem_WVA
+      ,sum(case when status_atual = 'wc-waiting_vend_acpt'
+            then valor_pedido
+            else 0
+            end) as valor_em_VWA
+      ,sum(case when status_atual = 'wc-in-separation'
+            then 1
+            else 0
+            end) as contagem_em_separacao
+      ,sum(case when status_atual = 'wc-in-separation'
+            then valor_pedido
+            else 0
+            end) as valor_em_separacao
+      ,round(AVG(LT_WVA_SEP),2) as LT_WVA_SEP
+      ,sum(case when status_atual = 'wc-ready-dispatch' and (ready_dispatch_com_flag_revisado is null or tipo_filial = '1P')
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_sem_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and (ready_dispatch_com_flag_revisado is null or tipo_filial = '1P')
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_sem_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and ready_dispatch_com_flag_revisado is not null and tipo_filial = '3P'
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_com_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch' and ready_dispatch_com_flag_revisado is not null and tipo_filial = '3P'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_com_flag
+      ,sum(case when status_atual = 'wc-ready-dispatch-reversa'
+            then 1
+            else 0
+            end) as contagem_pronto_despacho_em_reversa
+      ,sum(case when status_atual = 'wc-ready-dispatch-reversa'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_despacho_em_reversa
+      ,round(AVG(LT_SEP_DESP),2) as LT_SEP_DESP
+      ,round(AVG(LT_DESP_FLAG),2) as LT_DESP_FLAG
+      ,sum(case when status_atual = 'wc-in-hub'
+            then 1
+            else 0
+            end) as contagem_no_hub
+      ,sum(case when status_atual = 'wc-in-hub'
+            then valor_pedido
+            else 0
+            end) as valor_no_hub
+      ,sum(case when status_atual = 'wc-in-route-cd'
+            then 1
+            else 0
+            end) as contagem_em_rota_CD
+      ,sum(case when status_atual = 'wc-in-route-cd'
+            then valor_pedido
+            else 0
+            end) as valor_em_rota_CD
+      ,round(AVG(LT_DESP_ROTA_CD),2) as LT_DESP_ROTA_CD
+      ,sum(case when status_atual = 'wc-in-route-rua'
+            then 1
+            else 0
+            end) as contagem_em_rota_rua
+      ,sum(case when status_atual = 'wc-in-route-rua'
+            then valor_pedido
+            else 0
+            end) as valor_em_rota_rua
+      ,round(AVG(LT_ROTA_CD_ROTA_RUA),2) as LT_ROTA_CD_ROTA_RUA
+      ,sum(case when status_atual = 'wc-ready-collect'
+            then 1
+            else 0
+            end) as contagem_pronto_coleta
+      ,sum(case when status_atual = 'wc-ready-collect'
+            then valor_pedido
+            else 0
+            end) as valor_pronto_coleta
+      ,round(AVG(LT_ROTA_RUA_COLETA),2) as LT_ROTA_RUA_COLETA
+      ,sum(case when status_atual = 'wc-delivery_finished'
+            then 1
+            else 0
+            end) as contagem_finalizado
+      ,sum(case when status_atual = 'wc-delivery_finished'
+            then valor_pedido
+            else 0
+            end) as valor_finalizado
+      ,round(AVG(LT_ROTA_RUA_COLETA),2) as LT_COLETA_FINESHED
+      ,sum(case when status_atual = 'wc-cancelled'
+            then 1
+            else 0
+            end) as contagem_cancelado
+      ,sum(case when status_atual = 'wc-cancelled'
+            then valor_pedido
+            else 0
+            end) as valor_cancelado
+      ,sum(case when status_atual = 'wc-refunded'
+            then 1
+            else 0
+            end) as contagem_refunded
+      ,sum(case when status_atual = 'wc-refunded'
+            then valor_pedido
+            else 0
+            end) as valor_refunded
+      ,sum(case when status_atual = 'wc-returned'
+            then 1
+            else 0
+            end) as contagem_returned
+      ,sum(case when status_atual = 'wc-returned'
+            then valor_pedido
+            else 0
+            end) as valor_returned
+      ,sum(case when status_atual not in ('wc-returned','wc-refunded','wc-cancelled','wc-delivery_finished','wc-ready-collect','wc-in-route-rua','wc-in-route-cd','wc-in-hub','wc-ready-dispatch-reversa','wc-ready-dispatch','wc-in-separation','wc-waiting_vend_acpt')
+            then 1
+            else 0
+            end) as contagem_outros_status
+      ,sum(case when status_atual not in ('wc-returned','wc-refunded','wc-cancelled','wc-delivery_finished','wc-ready-collect','wc-in-route-rua','wc-in-route-cd','wc-in-hub','wc-ready-dispatch-reversa','wc-ready-dispatch','wc-in-separation','wc-waiting_vend_acpt')
+            then valor_pedido
+            else 0
+            end) as valor_outros_status
+      ,round(AVG(LT_total),2) as LT_total
+      from `facily-817c2.facily_wp_logistic_aux.TB_detalhes_fillrate` a
+      where date(ready_collect_revisado) >= '2021-11-01'
+      and date(ready_collect_revisado) <= current_date('America/Sao_Paulo') -7
+      group by 1,2,3,4,5,6,7,8,9
+       ;;
+  }
+
+  measure: count {
+    type: count
+    drill_fields: [detail*]
+  }
+
+  dimension: tipo_filial {
+    type: string
+    sql: ${TABLE}.tipo_filial ;;
+  }
+
+  dimension: id_filial {
+    type: string
+    sql: ${TABLE}.id_filial ;;
+  }
+
+  dimension: filial {
+    type: string
+    sql: ${TABLE}.Filial ;;
+  }
+
+  dimension: regiao {
+    type: string
+    sql: ${TABLE}.regiao ;;
+  }
+
+  dimension: zona_pedido {
+    type: string
+    sql: ${TABLE}.zona_pedido ;;
+  }
+
+  dimension: destino_transf {
+    type: string
+    sql: ${TABLE}.destino_transf ;;
+  }
+
+  dimension: ponto_entrada {
+    type: string
+    sql: ${TABLE}.ponto_entrada ;;
+  }
+
+  dimension: ano_ponto_entrada {
+    type: number
+    sql: ${TABLE}.ano_ponto_entrada ;;
+  }
+
+  dimension: mes_ponto_entrada {
+    type: number
+    sql: ${TABLE}.mes_ponto_entrada ;;
+  }
+
+  dimension: contagem_total_pedidos {
+    type: number
+    sql: ${TABLE}.contagem_total_pedidos ;;
+  }
+
+  dimension: valor_total {
+    type: number
+    sql: ${TABLE}.valor_total ;;
+  }
+
+  dimension: contagem_wva {
+    type: number
+    sql: ${TABLE}.contagem_WVA ;;
+  }
+
+  dimension: valor_em_vwa {
+    type: number
+    sql: ${TABLE}.valor_em_VWA ;;
+  }
+
+  dimension: contagem_em_separacao {
+    type: number
+    sql: ${TABLE}.contagem_em_separacao ;;
+  }
+
+  dimension: valor_em_separacao {
+    type: number
+    sql: ${TABLE}.valor_em_separacao ;;
+  }
+
+  dimension: lt_wva_sep {
+    type: number
+    sql: ${TABLE}.LT_WVA_SEP ;;
+  }
+
+  dimension: contagem_pronto_despacho_sem_flag {
+    type: number
+    sql: ${TABLE}.contagem_pronto_despacho_sem_flag ;;
+  }
+
+  dimension: valor_pronto_despacho_sem_flag {
+    type: number
+    sql: ${TABLE}.valor_pronto_despacho_sem_flag ;;
+  }
+
+  dimension: contagem_pronto_despacho_com_flag {
+    type: number
+    sql: ${TABLE}.contagem_pronto_despacho_com_flag ;;
+  }
+
+  dimension: valor_pronto_despacho_com_flag {
+    type: number
+    sql: ${TABLE}.valor_pronto_despacho_com_flag ;;
+  }
+
+  dimension: contagem_pronto_despacho_em_reversa {
+    type: number
+    sql: ${TABLE}.contagem_pronto_despacho_em_reversa ;;
+  }
+
+  dimension: valor_pronto_despacho_em_reversa {
+    type: number
+    sql: ${TABLE}.valor_pronto_despacho_em_reversa ;;
+  }
+
+  dimension: lt_sep_desp {
+    type: number
+    sql: ${TABLE}.LT_SEP_DESP ;;
+  }
+
+  dimension: lt_desp_flag {
+    type: number
+    sql: ${TABLE}.LT_DESP_FLAG ;;
+  }
+
+  dimension: contagem_no_hub {
+    type: number
+    sql: ${TABLE}.contagem_no_hub ;;
+  }
+
+  dimension: valor_no_hub {
+    type: number
+    sql: ${TABLE}.valor_no_hub ;;
+  }
+
+  dimension: contagem_em_rota_cd {
+    type: number
+    sql: ${TABLE}.contagem_em_rota_CD ;;
+  }
+
+  dimension: valor_em_rota_cd {
+    type: number
+    sql: ${TABLE}.valor_em_rota_CD ;;
+  }
+
+  dimension: lt_desp_rota_cd {
+    type: number
+    sql: ${TABLE}.LT_DESP_ROTA_CD ;;
+  }
+
+  dimension: contagem_em_rota_rua {
+    type: number
+    sql: ${TABLE}.contagem_em_rota_rua ;;
+  }
+
+  dimension: valor_em_rota_rua {
+    type: number
+    sql: ${TABLE}.valor_em_rota_rua ;;
+  }
+
+  dimension: lt_rota_cd_rota_rua {
+    type: number
+    sql: ${TABLE}.LT_ROTA_CD_ROTA_RUA ;;
+  }
+
+  dimension: contagem_pronto_coleta {
+    type: number
+    sql: ${TABLE}.contagem_pronto_coleta ;;
+  }
+
+  dimension: valor_pronto_coleta {
+    type: number
+    sql: ${TABLE}.valor_pronto_coleta ;;
+  }
+
+  dimension: lt_rota_rua_coleta {
+    type: number
+    sql: ${TABLE}.LT_ROTA_RUA_COLETA ;;
+  }
+
+  dimension: contagem_finalizado {
+    type: number
+    sql: ${TABLE}.contagem_finalizado ;;
+  }
+
+  dimension: valor_finalizado {
+    type: number
+    sql: ${TABLE}.valor_finalizado ;;
+  }
+
+  dimension: lt_coleta_fineshed {
+    type: number
+    sql: ${TABLE}.LT_COLETA_FINESHED ;;
+  }
+
+  dimension: contagem_cancelado {
+    type: number
+    sql: ${TABLE}.contagem_cancelado ;;
+  }
+
+  dimension: valor_cancelado {
+    type: number
+    sql: ${TABLE}.valor_cancelado ;;
+  }
+
+  dimension: contagem_refunded {
+    type: number
+    sql: ${TABLE}.contagem_refunded ;;
+  }
+
+  dimension: valor_refunded {
+    type: number
+    sql: ${TABLE}.valor_refunded ;;
+  }
+
+  dimension: contagem_returned {
+    type: number
+    sql: ${TABLE}.contagem_returned ;;
+  }
+
+  dimension: valor_returned {
+    type: number
+    sql: ${TABLE}.valor_returned ;;
+  }
+
+  dimension: contagem_outros_status {
+    type: number
+    sql: ${TABLE}.contagem_outros_status ;;
+  }
+
+  dimension: valor_outros_status {
+    type: number
+    sql: ${TABLE}.valor_outros_status ;;
+  }
+
+  dimension: lt_total {
+    type: number
+    sql: ${TABLE}.LT_total ;;
+  }
+
+  set: detail {
+    fields: [
+      tipo_filial,
+      id_filial,
+      filial,
+      regiao,
+      zona_pedido,
+      destino_transf,
+      ponto_entrada,
+      ano_ponto_entrada,
+      mes_ponto_entrada,
+      contagem_total_pedidos,
+      valor_total,
+      contagem_wva,
+      valor_em_vwa,
+      contagem_em_separacao,
+      valor_em_separacao,
+      lt_wva_sep,
+      contagem_pronto_despacho_sem_flag,
+      valor_pronto_despacho_sem_flag,
+      contagem_pronto_despacho_com_flag,
+      valor_pronto_despacho_com_flag,
+      contagem_pronto_despacho_em_reversa,
+      valor_pronto_despacho_em_reversa,
+      lt_sep_desp,
+      lt_desp_flag,
+      contagem_no_hub,
+      valor_no_hub,
+      contagem_em_rota_cd,
+      valor_em_rota_cd,
+      lt_desp_rota_cd,
+      contagem_em_rota_rua,
+      valor_em_rota_rua,
+      lt_rota_cd_rota_rua,
+      contagem_pronto_coleta,
+      valor_pronto_coleta,
+      lt_rota_rua_coleta,
+      contagem_finalizado,
+      valor_finalizado,
+      lt_coleta_fineshed,
+      contagem_cancelado,
+      valor_cancelado,
+      contagem_refunded,
+      valor_refunded,
+      contagem_returned,
+      valor_returned,
+      contagem_outros_status,
+      valor_outros_status,
+      lt_total
+    ]
+  }
+
+
+  # calculos para quantidade por fases.
+
+  # totais quantidade de pedido por fase
+
+
+  # fases:
+  # wva, em separação, pronto para despacho sem flag CD, pronto para despacho com flag CD, pronto para despacho em reversa
+  # no HUB, em Rota CD, em Rota Rua, Pronto para coleta, Finalizado
+
+
+  measure: soma_wva {
+    type: sum
+    sql: ${contagem_wva} ;;
+  }
+
+  measure: soma_separacao {
+    type: sum
+    sql: ${contagem_em_separacao} ;;
+  }
+
+  measure: soma_despacho_s_flag {
+    type: sum
+    sql: ${contagem_pronto_despacho_sem_flag} ;;
+  }
+
+  measure: soma_despacho_c_flag {
+    type: sum
+    sql: ${contagem_pronto_despacho_com_flag} ;;
+  }
+
+  measure: soma_despacho_reversa {
+    type: sum
+    sql: ${contagem_pronto_despacho_em_reversa} ;;
+  }
+
+  measure: soma_hub {
+    type: sum
+    sql: ${contagem_no_hub} ;;
+  }
+
+  # fases:
+  # wva, em separação, pronto para despacho sem flag CD, pronto para despacho com flag CD, pronto para despacho em reversa
+  # no HUB, em Rota CD, em Rota Rua, Pronto para coleta, Finalizado
+
+  measure: soma_rota_cd {
+    type: sum
+    sql: ${contagem_em_rota_cd} ;;
+  }
+
+  measure: soma_rota_rua {
+    type: sum
+    sql: ${contagem_em_rota_rua} ;;
+  }
+
+  measure: soma_coleta {
+    type: sum
+    sql: ${contagem_pronto_coleta} ;;
+  }
+
+  measure: soma_finalizado {
+    type: sum
+    sql: ${contagem_finalizado} ;;
+  }
+
+  measure: soma_cancelados {
+    type: sum
+    sql: ${contagem_cancelado} ;;
+  }
+
+  measure: soma_outros {
+    type: sum
+    sql: ${contagem_outros_status} ;;
+  }
+
+  measure: soma_refunded { #reembolsar
+    type: sum
+    sql: ${contagem_refunded} ;;
+  }
+
+  measure: soma_returned { #retornar
+    type: sum
+    sql: ${contagem_returned} ;;
+  }
+
+  measure: soma_total_pedidos {
+    type: sum
+    sql: ${contagem_total_pedidos} ;;
+  }
+
+  # fases:
+  # wva, em separação, pronto para despacho sem flag CD, pronto para despacho com flag CD, pronto para despacho em reversa
+  # no HUB, em Rota CD, em Rota Rua, Pronto para coleta, Finalizado
+
+  parameter: selecao_fases {
+    type: unquoted
+    allowed_value: {
+      label: "wva"
+      value: "wva"
+
+    }
+    allowed_value: {
+      label: "separacao"
+      value: "separacao"
+
+    }
+    allowed_value: {
+      label: "despacho_s_flag"
+      value: "despacho_s_flag"
+
+    }
+    allowed_value: {
+      label: "despacho_c_flag"
+      value: "despacho_c_flag"
+
+    }
+    allowed_value: {
+      label: "hub"
+      value: "hub"
+
+    }
+    allowed_value: {
+      label: "rota_cd"
+      value: "rota_cd"
+
+    }
+    allowed_value: {
+      label: "rota_rua"
+      value: "rota_rua"
+
+    }
+    allowed_value: {
+      label: "coleta"
+      value: "coleta"
+
+    }
+
+
+  }
+
+
+  measure: calculo_wva {
+    type: number
+    sql:
+      ${soma_wva}+
+      ${soma_separacao}+
+      ${soma_despacho_s_flag}+
+      ${soma_despacho_c_flag}+
+      ${soma_despacho_reversa}+
+      ${soma_hub}+
+      ${soma_rota_cd}+
+      ${soma_rota_rua}+
+      ${soma_coleta}+
+      ${soma_finalizado}
+    ;;
+
+  }
+
+
+  measure: calculo_separacao {
+    type: number
+    sql:
+      ${soma_separacao}+
+      ${soma_despacho_s_flag}+
+      ${soma_despacho_c_flag}+
+      ${soma_despacho_reversa}+
+      ${soma_hub}+
+      ${soma_rota_cd}+
+      ${soma_rota_rua}+
+      ${soma_coleta}+
+      ${soma_finalizado}
+    ;;
+
+    }
+  measure: calculo_despacho_s_flag {
+    type: number
+    sql:
+      ${soma_despacho_s_flag}+
+      ${soma_despacho_c_flag}+
+      ${soma_despacho_reversa}+
+      ${soma_hub}+
+      ${soma_rota_cd}+
+      ${soma_rota_rua}+
+      ${soma_coleta}+
+      ${soma_finalizado}
+    ;;
+
+    }
+  measure: calculo_despacho_c_flag {
+    type: number
+    sql:
+
+      ${soma_despacho_c_flag}+
+      ${soma_despacho_reversa}+
+      ${soma_hub}+
+      ${soma_rota_cd}+
+      ${soma_rota_rua}+
+      ${soma_coleta}+
+      ${soma_finalizado}
+    ;;
+
+    }
+  measure: calculo_despacho_reversa {
+    type: number
+    sql:
+      ${soma_despacho_reversa}+
+      ${soma_hub}+
+      ${soma_rota_cd}+
+      ${soma_rota_rua}+
+      ${soma_coleta}+
+      ${soma_finalizado}
+    ;;
+
+    }
+
+  measure: calculo_hub {
+    type: number
+    sql:
+      ${soma_hub}+
+      ${soma_rota_cd}+
+      ${soma_rota_rua}+
+      ${soma_coleta}+
+      ${soma_finalizado}
+    ;;
+
+    }
+  measure: calculo_rota_cd {
+    type: number
+    sql:
+      ${soma_rota_cd}+
+      ${soma_rota_rua}+
+      ${soma_coleta}+
+      ${soma_finalizado}
+    ;;
+
+    }
+  measure: calculo_rota_rua {
+    type: number
+    sql:
+      ${soma_rota_rua}+
+      ${soma_coleta}+
+      ${soma_finalizado}
+    ;;
+
+    }
+
+  measure: calculo_coleta {
+    type: number
+    sql:
+      ${soma_coleta}+
+      ${soma_finalizado}
+    ;;
+    }
+
+
+
+  measure: calculo_f_total {
+    type: number
+    label_from_parameter: selecao_fases
+  sql:
+    {% if selecao_fases._parameter_value == "wva" %}
+      ${calculo_wva}
+    {% elsif selecao_fases._parameter_value == "separacao"  %}
+      ${calculo_separacao}
+
+    {% elsif selecao_fases._parameter_value == "despacho_s_flag"  %}
+      ${calculo_despacho_s_flag}
+
+    {% elsif selecao_fases._parameter_value == "despacho_c_flag"  %}
+      ${calculo_despacho_c_flag}
+
+    {% elsif selecao_fases._parameter_value == "hub"  %}
+      ${calculo_hub}
+
+    {% elsif selecao_fases._parameter_value == "rota_cd"  %}
+      ${calculo_rota_cd}
+
+    {% elsif selecao_fases._parameter_value == "rota_rua"  %}
+      ${calculo_rota_rua}
+
+    {% elsif selecao_fases._parameter_value == "coleta"  %}
+      ${calculo_coleta}
+
+    {% else %}
+      ${calculo_wva}
+    {% endif %};;
+  }
+
+  measure: calculo_f_porcento {
+    type: number
+    label_from_parameter: selecao_fases
+    sql:
+    {% if selecao_fases._parameter_value == "wva" %}
+      ${calculo_wva}/${soma_total_pedidos}
+
+    {% elsif selecao_fases._parameter_value == "separacao"  %}
+      ${calculo_separacao}/${soma_total_pedidos}
+
+    {% elsif selecao_fases._parameter_value == "despacho_s_flag"  %}
+      ${calculo_despacho_s_flag}/${soma_total_pedidos}
+
+    {% elsif selecao_fases._parameter_value == "despacho_c_flag"  %}
+      ${calculo_despacho_c_flag}/${soma_total_pedidos}
+
+    {% elsif selecao_fases._parameter_value == "hub"  %}
+      ${calculo_hub}/${soma_total_pedidos}
+
+    {% elsif selecao_fases._parameter_value == "rota_cd"  %}
+      ${calculo_rota_cd}/${soma_total_pedidos}
+
+    {% elsif selecao_fases._parameter_value == "rota_rua"  %}
+      ${calculo_rota_rua}/${soma_total_pedidos}
+
+    {% elsif selecao_fases._parameter_value == "coleta"  %}
+      ${calculo_coleta}/${soma_total_pedidos}
+
+    {% else %}
+      ${calculo_wva}
+    {% endif %};;
+  }
+
+  measure: nao_convertidos {
+    type: number
+    label_from_parameter: selecao_fases
+    sql:
+    {% if selecao_fases._parameter_value == "wva" %}
+      ${soma_total_pedidos}-${calculo_wva}
+
+    {% elsif selecao_fases._parameter_value == "separacao"  %}
+      ${soma_total_pedidos}-${calculo_separacao}
+
+    {% elsif selecao_fases._parameter_value == "despacho_s_flag"  %}
+      ${soma_total_pedidos}-${calculo_despacho_s_flag}
+
+    {% elsif selecao_fases._parameter_value == "despacho_c_flag"  %}
+      ${soma_total_pedidos}-${calculo_despacho_c_flag}
+
+    {% elsif selecao_fases._parameter_value == "hub"  %}
+      ${soma_total_pedidos}-${calculo_hub}
+
+    {% elsif selecao_fases._parameter_value == "rota_cd"  %}
+      ${soma_total_pedidos}-${calculo_rota_cd}
+
+    {% elsif selecao_fases._parameter_value == "rota_rua"  %}
+      ${soma_total_pedidos}-${calculo_rota_rua}
+
+    {% elsif selecao_fases._parameter_value == "coleta"  %}
+      ${soma_total_pedidos}-${calculo_coleta}
+
+    {% else %}
+      ${calculo_wva}
+    {% endif %};;
+  }
+
+
+
+}
